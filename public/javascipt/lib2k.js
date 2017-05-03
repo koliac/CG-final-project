@@ -113,7 +113,7 @@ function Scene() {
 var time = 0;
 
 function gl_start(canvas, update) {           // START WEBGL RUNNING IN A CANVAS
-   try { 
+   try {
       canvas.gl = canvas.getContext('experimental-webgl');                 // Make sure WebGl is supported.
    } catch (e) { throw 'Sorry, your browser does not support WebGL.'; }
 
@@ -161,4 +161,3 @@ function gl_start(canvas, update) {           // START WEBGL RUNNING IN A CANVAS
 
    }, 100); // Wait 100 milliseconds after page has loaded before starting WebGL.
 }
-

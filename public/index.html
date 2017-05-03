@@ -13,8 +13,10 @@
     <h1 class="title">Welcome to the sound room</h1>
     <canvas id="canvas1">
     </canvas>
+    <script src="/socket.io/socket.io.js"></script>
 
     <script>
+    var socket = io();
 
     var vs = '\
     attribute vec3 aPos, aNor;\n\
@@ -40,6 +42,7 @@
        vec3 c = vec3(.1,.1,.1);\n\
        c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));\n\
        c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));\n\
+       c*=vec3(1.,.3,.3);\n\
        gl_FragColor = vec4(sqrt(c), 1.);\n\
     }\n\
     ';
@@ -65,18 +68,19 @@
 
        var material1 = new Material(vs, fs1);
 
-       var material2 = new Material(vs, fs2);
-       material2.setTexture('imgs/brick.png');
-
+       var objCount =0;
        obj1 = new SceneObject();
-       obj1.setVertices(SHAPE.cylinder(10));
+       obj1.setVertices(SHAPE.sphere(60,60));
        obj1.setMaterial(material1);
        scene.addObject(obj1);
+       socket.on("connect",function(){
+         console.log("New player",socket.id,"just entered");
+         socket.emit("spawn");
 
-       obj2 = new SceneObject();
-       obj2.setVertices(SHAPE.cylinder(20));
-       obj2.setMaterial(material2);
-       scene.addObject(obj2);
+       });
+
+
+
 
        canvas1.scene = scene;
 
@@ -85,19 +89,15 @@
     gl_start(canvas1,
        function(time) {
           M.identity(m);
-          M.rotateY(m, time/4);
-          M.rotateZ(m, time/4);
 
           M.save(m);
-             M.scale(m, .2);
+           M.translate(m,[0,0,-.8]);
+            M.scale(m, .2);
+
              obj1.setMatrix(m);
           M.restore(m);
 
-          M.save(m);
-             M.rotateX(m, time);
-             M.scale(m, .1, .1, .4);
-             obj2.setMatrix(m);
-          M.restore(m);
+
        }
     );
 

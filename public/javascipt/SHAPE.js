@@ -48,7 +48,24 @@ var SHAPE = (function() {
       addDiskVertices(V, n,  1,  1);
       return V;
    }
+   function addSphereVertices(V,m,n){
+     return addMeshVertices(V,m,n,function(u,v){
+       let cos = Math.cos,
+           sin = Math.sin,
+           theta = 2*Math.PI*u,
+           phi = Math.PI*(v-.5),
+           x= cos(theta)*cos(phi),
+           y=sin(theta)*cos(phi),
+           z=sin(phi);
+        return [x,y,z, x,y,z, u,v];
+
+     });
+   }
+   my.sphere= function(m,n){
+     var V = [];
+     addSphereVertices(V,m,n);
+     return V;
+   }
 
    return my;
 })();
-
