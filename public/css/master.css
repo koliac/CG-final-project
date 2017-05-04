@@ -2,7 +2,21 @@
   text-align: center;
 }
 canvas{
-  width: 800px;
-  height: 800px;
+  width: 1000px;
+  height: 1000px;
   background-color: black;
+}
+.wrapper{
+  -ms-box-orient: horizontal;
+display: -webkit-box;
+display: -moz-box;
+display: -ms-flexbox;
+display: -moz-flex;
+display: -webkit-flex;
+display: flex;
+}
+.wrapper canvas {
+  -webkit-align-items: center;
+align-items: center;
+
 }

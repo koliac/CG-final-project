@@ -1,142 +1,164 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <link rel="stylesheet" href="/css/master.css">
-    <title>Sound Room</title>
-    <script src="/javascipt/M.js"></script>
-    <script src="/javascipt/lib2k.js"></script>
-    <script src="/javascipt/SHAPE.js"></script>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="/css/master.css">
+  <title>Sound Room</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="/javascript/M.js"></script>
+  <script src="/javascript/lib2k.js"></script>
+  <script src="/javascript/SHAPE.js"></script>
 
-  </head>
-  <body>
-    <h1 class="title">Welcome to the sound room</h1>
-    <canvas id="canvas1">
-    </canvas>
-    <script src="/socket.io/socket.io.js"></script>
+  <script src="/javascript/audioAnalyzer.js"></script>
 
-    <script>
-    var socket = io();
+</head>
+<body>
+  <h1 class="title">Welcome to the sound room</h1>
+  <div class="wrapper">
+  <canvas width="1000" height="1000" id="canvas1">
+  </div>
+  </canvas>
+  <script src='/socket.io/socket.io.js'></script>
+  <script id='vertex-shader' type='notjs'>
+  attribute vec3 aPos, aNor;
+  attribute vec2 aUV;
+  varying   vec3 vPos, vNor;
+  varying   vec2 vUV;
+  uniform   mat4 matrix, invMatrix;
+  void main() {
+    vec4 pos = matrix * vec4(aPos, 1.);
+    vec4 nor = vec4(aNor, 0.) * invMatrix;
+    gl_Position = pos;
+    vPos = pos.xyz;
+    vNor = nor.xyz;
+    vUV  = aUV;
+  }
+  </script>
+  <script id="fragment-shader" type="notjs">
+  varying vec3 vPos, vNor;
+  varying vec2 vUV;
+  void main() {
+    vec3 normal = normalize(vNor);
+    vec3 c = vec3(.1,.1,.1);
+    c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));
+    c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));
+    c*=vec3(1.,.3,.3);
+    gl_FragColor = vec4(sqrt(c), 1.);
+  }
 
-    var vs = '\
-    attribute vec3 aPos, aNor;\n\
-    attribute vec2 aUV;\n\
-    varying   vec3 vPos, vNor;\n\
-    varying   vec2 vUV;\n\
-    uniform   mat4 matrix, invMatrix;\n\
-    void main() {\n\
-       vec4 pos = matrix * vec4(aPos, 1.);\n\
-       vec4 nor = vec4(aNor, 0.) * invMatrix;\n\
-       gl_Position = pos;\n\
-       vPos = pos.xyz;\n\
-       vNor = nor.xyz;\n\
-       vUV  = aUV;\n\
-    }\n\
-    ';
+  </script>
 
-    var fs1 = '\
-    varying vec3 vPos, vNor;\n\
-    varying vec2 vUV;\n\
-    void main() {\n\
-       vec3 normal = normalize(vNor);\n\
-       vec3 c = vec3(.1,.1,.1);\n\
-       c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));\n\
-       c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));\n\
-       c*=vec3(1.,.3,.3);\n\
-       gl_FragColor = vec4(sqrt(c), 1.);\n\
-    }\n\
-    ';
+  <script >
+  var socket = io();
 
-    var fs2 = '\
-    varying vec3 vPos, vNor;\n\
-    varying vec2 vUV;\n\
-    uniform sampler2D uSampler;\n\
-    void main() {\n\
-       vec3 normal = normalize(vNor);\n\
-       vec3 c = vec3(.1,.1,.1);\n\
-       c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));\n\
-       c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));\n\
-       vec4 texture = texture2D(uSampler, vUV);\n\
-       c *= texture.rgb;\n\
-       gl_FragColor = vec4(sqrt(c), 1.);\n\
-    }\n\
-    ';
+  // var vs = '\
+  // attribute vec3 aPos, aNor;\n\
+  // attribute vec2 aUV;\n\
+  // varying   vec3 vPos, vNor;\n\
+  // varying   vec2 vUV;\n\
+  // uniform   mat4 matrix, invMatrix;\n\
+  // void main() {\n\
+  //   vec4 pos = matrix * vec4(aPos, 1.);\n\
+  //   vec4 nor = vec4(aNor, 0.) * invMatrix;\n\
+  //   gl_Position = pos;\n\
+  //   vPos = pos.xyz;\n\
+  //   vNor = nor.xyz;\n\
+  //   vUV  = aUV;\n\
+  // }\n\
+  // ';
+  var vs = document.querySelector("#vertex-shader").text;
+  var fs = document.querySelector("#fragment-shader").text;
 
-       var obj1, obj2;
-       let objs ={};
+  // var fs1 = '\
+  // varying vec3 vPos, vNor;\n\
+  // varying vec2 vUV;\n\
+  // void main() {\n\
+  //   vec3 normal = normalize(vNor);\n\
+  //   vec3 c = vec3(.1,.1,.1);\n\
+  //   c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));\n\
+  //   c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));\n\
+  //   c*=vec3(1.,.3,.3);\n\
+  //   gl_FragColor = vec4(sqrt(c), 1.);\n\
+  // }\n\
+  // ';
+  //
+  // var fs2 = '\
+  // varying vec3 vPos, vNor;\n\
+  // varying vec2 vUV;\n\
+  // uniform sampler2D uSampler;\n\
+  // void main() {\n\
+  //   vec3 normal = normalize(vNor);\n\
+  //   vec3 c = vec3(.1,.1,.1);\n\
+  //   c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));\n\
+  //   c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));\n\
+  //   vec4 texture = texture2D(uSampler, vUV);\n\
+  //   c *= texture.rgb;\n\
+  //   gl_FragColor = vec4(sqrt(c), 1.);\n\
+  // }\n\
+  // ';
 
-       var scene = new Scene();
+  var obj1, obj2;
+  let objs ={};
 
-       var material1 = new Material(vs, fs1);
+  var scene = new Scene();
 
-       var objCount =0;
-      //  obj1 = new SceneObject();
-      //  obj1.setVertices(SHAPE.sphere(60,60));
-      //  obj1.setMaterial(material1);
-      //  scene.addObject(obj1);
-       socket.on("connect",function(){
-         console.log("New player",socket.id,"just entered");
-         //let obj = new SceneObject();
-         //obj.setVertices(SHAPE.sphere(60,60));
-         //obj.setMaterial(material1);
-         let matrix = M.identityMatrix();
-         let randomX = Math.random()*2-1,
-             randomY = Math.random()*2-1,
-             randomZ = Math.random()*2-1;
-         M.translate(matrix,[randomX,randomY,randomZ]);
-         M.scale(matrix,.2,.2,.2);
+  var material1 = new Material(vs, fs);
 
-         //obj.setMatrix(matrix);
-         //scene.addObject(obj);
-         socket.emit("spawn",matrix);
+  var objCount =0;
+  //  obj1 = new SceneObject();
+  //  obj1.setVertices(SHAPE.sphere(60,60));
+  //  obj1.setMaterial(material1);
+  //  scene.addObject(obj1);
+  socket.on("connect",function(){
+    console.log("New player",socket.id,"just entered");
+    //let obj = new SceneObject();
+    //obj.setVertices(SHAPE.sphere(60,60));
+    //obj.setMaterial(material1);
+    let matrix = M.identityMatrix();
+    let randomX = Math.random()*2-1,
+    randomY = Math.random()*2-1,
+    randomZ = Math.random()*2-1;
+    M.translate(matrix,[randomX,randomY,randomZ]);
+    M.scale(matrix,.2,.2,.2);
 
-       });
+    //obj.setMatrix(matrix);
+    //scene.addObject(obj);
+    socket.emit("spawn",matrix);
 
-      // socket.on("spawn",(data)=>{
-      //    console.log(data);
-      //    for(let key in data){
-      //      let obj = new SceneObject();
-      //      obj.setVertices(SHAPE.sphere(30,30));
-      //      obj.setMaterial(material1);
-      //      obj.setMatrix(data[key]);
-      //      scene.addObject(obj);
-      //     }
-      //
-      //   });
-       canvas1.scene = scene;
+  });
 
+  socket.on("spawn",(data)=>{
+    console.log(data);
+    for(let key in data){
+      let obj = new SceneObject();
+      obj.setVertices(SHAPE.sphere(30,30));
+      obj.setMaterial(material1);
+      obj.setMatrix(data[key]);
+      scene.addObject(obj);
+    }
 
-
-
-
-
-
-
-
-       var m = M.identityMatrix();
-
-    gl_start(canvas1,
-       function(time) {
-         socket.on("spawn",(data)=>{
-            let list = [];
-            for(let key in data){
-              let obj = new SceneObject();
-              obj.setVertices(SHAPE.sphere(30,30));
-              obj.setMaterial(material1);
-              obj.setMatrix(data[key]);
-              list.push(obj);
-              canvas1.scene.objects=list;
-             }
-
-           });
+  });
+  canvas1.scene = scene;
 
 
 
 
 
-       }
-    );
 
-    </script>
-  </body>
+
+
+
+  var m = M.identityMatrix();
+
+  gl_start(canvas1,
+    function(time) {
+
+
+
+
+    }
+  );
+
+  </script>
+</body>
 </html>
