@@ -63,39 +63,75 @@
     ';
 
        var obj1, obj2;
+       let objs ={};
 
        var scene = new Scene();
 
        var material1 = new Material(vs, fs1);
 
        var objCount =0;
-       obj1 = new SceneObject();
-       obj1.setVertices(SHAPE.sphere(60,60));
-       obj1.setMaterial(material1);
-       scene.addObject(obj1);
+      //  obj1 = new SceneObject();
+      //  obj1.setVertices(SHAPE.sphere(60,60));
+      //  obj1.setMaterial(material1);
+      //  scene.addObject(obj1);
        socket.on("connect",function(){
          console.log("New player",socket.id,"just entered");
-         socket.emit("spawn");
+         //let obj = new SceneObject();
+         //obj.setVertices(SHAPE.sphere(60,60));
+         //obj.setMaterial(material1);
+         let matrix = M.identityMatrix();
+         let randomX = Math.random()*2-1,
+             randomY = Math.random()*2-1,
+             randomZ = Math.random()*2-1;
+         M.translate(matrix,[randomX,randomY,randomZ]);
+         M.scale(matrix,.2,.2,.2);
+
+         //obj.setMatrix(matrix);
+         //scene.addObject(obj);
+         socket.emit("spawn",matrix);
 
        });
 
-
-
-
+      // socket.on("spawn",(data)=>{
+      //    console.log(data);
+      //    for(let key in data){
+      //      let obj = new SceneObject();
+      //      obj.setVertices(SHAPE.sphere(30,30));
+      //      obj.setMaterial(material1);
+      //      obj.setMatrix(data[key]);
+      //      scene.addObject(obj);
+      //     }
+      //
+      //   });
        canvas1.scene = scene;
+
+
+
+
+
+
+
+
 
        var m = M.identityMatrix();
 
     gl_start(canvas1,
        function(time) {
-          M.identity(m);
+         socket.on("spawn",(data)=>{
+            let list = [];
+            for(let key in data){
+              let obj = new SceneObject();
+              obj.setVertices(SHAPE.sphere(30,30));
+              obj.setMaterial(material1);
+              obj.setMatrix(data[key]);
+              list.push(obj);
+              canvas1.scene.objects=list;
+             }
 
-          M.save(m);
-           M.translate(m,[0,0,-.8]);
-            M.scale(m, .2);
+           });
 
-             obj1.setMatrix(m);
-          M.restore(m);
+
+
 
 
        }

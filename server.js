@@ -5,20 +5,19 @@ const app = express();
 
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
-var allClients = {};
+var clientObjs = {};
 io.on("connection",function(socket){
   console.log(socket.id,"has connected");
-  io.emit("spawn");
-  socket.on("spawn",function(socket){
-    let randomX = Math.random()*2-1,
-        randomY = Math.random()*2-1,
-        randomZ = Math.random()*2-1;
-    allClients[socket.id]=[randomX,randomY,randomZ];
-    socket.emit("spawn",allClients);
+  io.emit("spawn",clientObjs);
+  socket.on("spawn",function(data){
+    clientObjs[socket.id]=data;
+    io.emit("spawn",clientObjs);
+
   });
   socket.on("disconnect",function(){
     console.log(socket.id,"disconnected");
-    allClients.splice(allClients.indexOf(socket),1);
+    delete clientObjs[socket.id];
+    io.emit("spawn",clientObjs);
   });
 });
 

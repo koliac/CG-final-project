@@ -108,6 +108,7 @@ function Scene() {
    this.addObject = function(obj) {
       this.objects.push(obj);
    }
+   
 }
 
 var time = 0;
