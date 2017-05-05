@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <link rel="stylesheet" href="/css/master.css">
   <title>Sound Room</title>
+
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="/javascript/audioAnalyzer.js"></script>
   <script src="/javascript/M.js"></script>
   <script src="/javascript/lib2k.js"></script>
   <script src="/javascript/SHAPE.js"></script>
 
-  <script src="/javascript/audioAnalyzer.js"></script>
+
 
 </head>
 <body>
@@ -19,13 +21,16 @@
   </div>
   </canvas>
   <script src='/socket.io/socket.io.js'></script>
-  <script id='vertex-shader' type='notjs'>
+  <script id='vertex-shader1' type='notjs'>
   attribute vec3 aPos, aNor;
   attribute vec2 aUV;
   varying   vec3 vPos, vNor;
   varying   vec2 vUV;
   uniform   mat4 matrix, invMatrix;
+  uniform sampler2D spectrum;
+  uniform float uTime;
   void main() {
+
     vec4 pos = matrix * vec4(aPos, 1.);
     vec4 nor = vec4(aNor, 0.) * invMatrix;
     gl_Position = pos;
@@ -34,16 +39,69 @@
     vUV  = aUV;
   }
   </script>
-  <script id="fragment-shader" type="notjs">
+  <script id='vertex-shader2' type='notjs'>
+  attribute vec3 aPos, aNor;
+  attribute vec2 aUV;
+  varying   vec3 vPos, vNor;
+  varying   vec2 vUV;
+  uniform   mat4 matrix, invMatrix;
+  uniform sampler2D spectrum;
+  uniform float uTime;
+  void main() {
+
+    vec4 pos = matrix * vec4(aPos*(texture2D(spectrum,vUV)+.5).x, 1.);
+    vec4 nor = vec4(aNor, 0.) * invMatrix;
+    gl_Position = pos;
+    vPos = pos.xyz;
+    vNor = nor.xyz;
+    vUV  = aUV;
+  }
+  </script>
+  <script id="fragment-shader1" type="x-shader/x-fragment">
+  uniform float uTime;
   varying vec3 vPos, vNor;
   varying vec2 vUV;
+  uniform sampler2D spectrum;
+
   void main() {
-    vec3 normal = normalize(vNor);
-    vec3 c = vec3(.1,.1,.1);
-    c += vec3(.7,.7,1.) * max(0.,dot(normal, vec3( .7, .7, .7)));
-    c += vec3(.5,.3,.1) * max(0.,dot(normal, vec3(-.7,-.7,-.7)));
-    c*=vec3(1.,.3,.3);
-    gl_FragColor = vec4(sqrt(c), 1.);
+
+    vec3 c;
+float z = 0.1 * uTime;
+vec2 uv = vUV;
+vec2 p = uv - 0.5;
+float l = 0.2 * length(p);
+for (int i = 0; i < 3; i++) {
+  z += 0.07;
+  uv += p / l * (sin(z) + 1.0) * abs(sin(l * 9.0 - z * 2.0));
+  c[i] = 0.01 / length(abs(mod(uv, 1.0) - 0.5));
+}
+ //float intensity = texture2D(spectrum, vec2(l, 0.5)).x;
+  gl_FragColor = vec4(c / l, uTime);
+  }
+
+  </script>
+  <script id="fragment-shader2" type="x-shader/x-fragment">
+  uniform float uTime;
+  varying vec3 vPos, vNor;
+  varying vec2 vUV;
+  uniform sampler2D spectrum;
+
+  void main() {
+
+    vec3 c;
+float z = 0.1 * uTime;
+vec2 uv = vUV;
+vec2 p = uv - 0.5;
+float l = 0.2 * length(p);
+float intensity = texture2D(spectrum, vec2(l, 0.5)).y;
+for (int i = 0; i < 3; i++) {
+  z += 0.07;
+  uv += p / l * (sin(z) + 1.0) * abs(sin(l * 9.0 - z * 2.0));
+  c[i] = 0.01* intensity/ length(abs(mod(uv, 1.0) - 0.5));
+}
+  vec3 cc = texture2D(spectrum, vec2(l, 0.5)).xyz;
+  gl_FragColor = vec4(c / l*intensity, uTime);
+  //gl_FragColor=vec4(sqrt(cc),1.);
   }
 
   </script>
@@ -66,9 +124,10 @@
   //   vUV  = aUV;\n\
   // }\n\
   // ';
-  var vs = document.querySelector("#vertex-shader").text;
-  var fs = document.querySelector("#fragment-shader").text;
-
+  var vs1 = document.querySelector("#vertex-shader1").text;
+  var vs2 = document.querySelector("#vertex-shader2").text;
+  var fs1 = document.querySelector("#fragment-shader1").text;
+  var fs2 = document.querySelector("#fragment-shader2").text;
   // var fs1 = '\
   // varying vec3 vPos, vNor;\n\
   // varying vec2 vUV;\n\
@@ -100,11 +159,16 @@
   var obj1, obj2;
   let objs ={};
 
+
   var scene = new Scene();
 
-  var material1 = new Material(vs, fs);
+  var material1 = new Material(vs1, fs1);
+  var material2 = new Material(vs2,fs2);
 
   var objCount =0;
+  var soundEffectList = ['tapesnare.wav',
+                         'shaman_drum.wav',
+                         'base_loop.mp3'];
   //  obj1 = new SceneObject();
   //  obj1.setVertices(SHAPE.sphere(60,60));
   //  obj1.setMaterial(material1);
@@ -118,26 +182,51 @@
     let randomX = Math.random()*2-1,
     randomY = Math.random()*2-1,
     randomZ = Math.random()*2-1;
-    M.translate(matrix,[randomX,randomY,randomZ]);
-    M.scale(matrix,.2,.2,.2);
+    var isMaster;
+    if(urlParams.has("isMaster")){
+      M.translate(matrix,[0,0,0]);
+      M.scale(matrix,.2,.2,.2);
+      isMaster=true;
+    }else{
+      M.translate(matrix,[randomX,randomY,randomZ]);
+      M.scale(matrix,.1,.1,.1);
+      isMaster=false;
+    }
+
+    var soundtrack = Math.floor(Math.random()*soundEffectList.length);
 
     //obj.setMatrix(matrix);
     //scene.addObject(obj);
-    socket.emit("spawn",matrix);
+    socket.emit("spawn",{matrix,isMaster});
+
+
 
   });
 
   socket.on("spawn",(data)=>{
-    console.log(data);
+
+    var objects = [];
     for(let key in data){
       let obj = new SceneObject();
       obj.setVertices(SHAPE.sphere(30,30));
+      if(data[key].isMaster){
+
+      obj.setMaterial(material2);
+    }else{
       obj.setMaterial(material1);
-      obj.setMatrix(data[key]);
-      scene.addObject(obj);
     }
 
+      obj.setMatrix(data[key].matrix);
+      objects.push(obj);
+
+
+      //sources[key].source.start(0);
+
+    }
+    scene.objects=objects
+
   });
+
   canvas1.scene = scene;
 
 
@@ -151,7 +240,15 @@
   var m = M.identityMatrix();
 
   gl_start(canvas1,
-    function(time) {
+    function(time,gl) {
+      if(gainNode!==undefined&&analyser!==undefined){
+        analyser.getByteFrequencyData(spectrum);
+        //console.log(spectrum);
+
+
+      }
+
+
 
 
 

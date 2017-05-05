@@ -1,15 +1,22 @@
 var context;
+var source;
+var gainNode;
+var analyser;
+var spectrum;
+var urlParams
 
 function init(){
+  urlParams = new URLSearchParams(window.location.search);
   try{
     window.AudioContext = window.AudioContext || window.webkitAudioContext;
     context = new AudioContext();
+
   }catch(e){
     alert("Web Audio API in not supported in this broswer");
 
   }
 }
-function loadSound(url,cb){
+function loadSound(url){
   axios({
     method:'get',
     url:url,
@@ -17,13 +24,14 @@ function loadSound(url,cb){
   }).then(function(res){
     context.decodeAudioData(res.data,
       function(buffer){
-      cb(buffer);
+        playSource(buffer);
+
+
     },
     function(e){
       console.log(e);
     }
   );
-
   });
 
 }
@@ -31,15 +39,31 @@ function loadSound(url,cb){
 //   cb(buffer);
 // });
 
-function playSound(time,buffer) {
-  var source = context.createBufferSource();
+function playSource(buffer) {
+
+  source = context.createBufferSource();
   source.buffer = buffer;
-  source.connect(context.destination);
+  gainNode = context.createGain();
+  masterGainNode = gainNode
+  source.connect(gainNode);
+  if(urlParams.has("isMaster")){
+  gainNode.gain.value = 1;
+}else{
+  gainNode.gain.value=0;
+}
+
+  gainNode.connect(context.destination);
+  analyser = context.createAnalyser();
+  gainNode.connect(analyser);
+  spectrum = new Uint8Array(analyser.frequencyBinCount);
   source.loop=true;
-  source.start(time);
+  source.start(0);
+
+
 }
-function main(){
+function mainSoundControl(){
   init();
-  loadSound('tapesnare.wav',playSound.bind(null,0));
+  loadSound("Turn_You_Bad.mp3");
+
 }
-window.addEventListener('load',main,false);
+window.addEventListener('load',mainSoundControl,false);

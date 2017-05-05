@@ -19,6 +19,18 @@ io.on("connection",function(socket){
     delete clientObjs[socket.id];
     io.emit("spawn",clientObjs);
   });
+
+});
+app.use((req,res,next)=>{
+  if(req.query.isMaster){
+
+    io.on("connection",function(socket){
+      console.log("master!");
+      socket.emit("master",true);
+    });
+
+  }
+  next();
 });
 
 app.use(serveStatic(path.join(__dirname,'public')));
